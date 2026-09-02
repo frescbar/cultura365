@@ -1,1 +1,99 @@
-const KEY='cultura365-v2-dia3';const state=JSON.parse(localStorage.getItem(KEY)||'{}');const save=()=>localStorage.setItem(KEY,JSON.stringify(state));const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];function setMode(mode){document.body.classList.remove('mode-essential','mode-full','mode-deep');document.body.classList.add('mode-'+mode);state.mode=mode;save();$$('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode))}$$('.mode').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));setMode(state.mode||'essential');$$('.section-head').forEach(btn=>btn.addEventListener('click',()=>{const s=btn.closest('.section-card');s.classList.toggle('open');btn.lastElementChild.textContent=s.classList.contains('open')?'−':'+';if(s.classList.contains('track')){state.read=state.read||{};state.read[s.id||btn.textContent.slice(0,18)]=true;save();progress()}}));function progress(){const visible=$$('.track').filter(s=>getComputedStyle(s).display!=='none');let done=0;visible.forEach((s,i)=>{const k=s.id||'s'+i;if(state.read?.[k])done++});const p=visible.length?Math.round(done/visible.length*100):0;$('#progressBar').style.width=p+'%';$('#progressText').textContent=p+'%'}$$('.q[data-answer]').forEach(q=>{const k=q.dataset.key,ans=q.dataset.answer;if(state[k])paint(q,state[k],ans);q.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>{state[k]=b.dataset.choice;save();paint(q,state[k],ans);quiz()}))});function paint(q,choice,ans){q.querySelectorAll('[data-choice]').forEach(b=>{b.classList.remove('correct','wrong');if(b.dataset.choice===choice)b.classList.add(choice===ans?'correct':'wrong')});const f=q.querySelector('.feedback');if(choice===ans){f.textContent='Correcto. Lo volveremos a recuperar más adelante.';f.className='feedback good'}else{f.textContent='Todavía no. Queda marcado para reaparecer antes.';f.className='feedback bad'}}function quiz(){let total=0,done=0,correct=0;$$('.q[data-answer]').forEach(q=>{total++;const v=state[q.dataset.key];if(v){done++;if(v===q.dataset.answer)correct++}});$('#quizScore').textContent=`${correct}/${total}`;$('#scoreHero').textContent=done?`${correct}/${done} local`:'Pendiente'}$('#saveTeach').addEventListener('click',()=>{state.teachBack=$('#teachBack').value.trim();save();$('#saveTeach').textContent=state.teachBack?'Guardado ✓':'Guardar'});if(state.teachBack)$('#teachBack').value=state.teachBack;$('#copyResults').addEventListener('click',async()=>{let total=0,done=0,correct=0,wrong=[];$$('.q[data-answer]').forEach(q=>{total++;const k=q.dataset.key,v=state[k];if(v){done++;if(v===q.dataset.answer)correct++;else wrong.push(k)}});const text=`CULTURA365 Día 3 | Checkpoints ${correct}/${done||0} correctos | Fallos: ${wrong.length?wrong.join(', '):'ninguno'} | Explicación abierta: ${state.teachBack||'sin responder'} | Modo usado: ${state.mode||'essential'} | Progreso lectura: ${$('#progressText').textContent}`;try{await navigator.clipboard.writeText(text);$('#copyStatus').textContent='Resumen copiado. Pégalo en ChatGPT para actualizar memoria y Cultural Score.'}catch(e){$('#copyStatus').textContent=text}});$('#themeBtn').addEventListener('click',()=>{document.body.classList.toggle('dark');state.dark=document.body.classList.contains('dark');save()});if(state.dark)document.body.classList.add('dark');$('#toTop').addEventListener('click',()=>scrollTo({top:0,behavior:'smooth'}));const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting&&e.intersectionRatio>.45&&getComputedStyle(e.target).display!=='none'){state.read=state.read||{};state.read[e.target.id||'observed']=true;save();progress()}})},{threshold:[.45]});$$('.track').forEach(s=>observer.observe(s));progress();quiz();
+const KEY='cultura365-dia3-magazine';
+const state=JSON.parse(localStorage.getItem(KEY)||'{}');
+const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
+const toast=(msg)=>{const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
+
+function setMode(mode){
+  document.body.classList.remove('mode-essential','mode-deep');
+  if(mode==='essential')document.body.classList.add('mode-essential');
+  if(mode==='deep')document.body.classList.add('mode-deep');
+  document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  state.mode=mode;save();
+}
+document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+setMode(state.mode||'all');
+
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  document.body.classList.toggle('dark');state.dark=document.body.classList.contains('dark');save();
+});
+if(state.dark)document.body.classList.add('dark');
+
+document.getElementById('toTop').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+
+function updateProgress(){
+  const tracks=[...document.querySelectorAll('.track')].filter(el=>getComputedStyle(el).display!=='none');
+  const visible=tracks.filter(el=>{const r=el.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight});
+  let reached=0;
+  tracks.forEach(el=>{if(state.read?.[el.id||el.dataset.key||tracks.indexOf(el)])reached++});
+  const pct=tracks.length?Math.round((reached/tracks.length)*100):0;
+  document.getElementById('progressBar').style.width=pct+'%';
+  document.getElementById('progressText').textContent=pct+'% leído';
+}
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting&&e.intersectionRatio>.45){
+      state.read=state.read||{};
+      const tracks=[...document.querySelectorAll('.track')];
+      state.read[e.target.id||e.target.dataset.key||tracks.indexOf(e.target)]=true;
+      save();updateProgress();
+    }
+  })
+},{threshold:[.45]});
+document.querySelectorAll('.track').forEach(el=>observer.observe(el));
+window.addEventListener('scroll',updateProgress,{passive:true});
+
+function paint(q,choice,answer){
+  q.querySelectorAll('[data-choice]').forEach(btn=>{
+    btn.classList.remove('correct','wrong');
+    if(btn.dataset.choice===choice)btn.classList.add(choice===answer?'correct':'wrong');
+  });
+  const f=q.querySelector('.feedback');
+  if(choice===answer){f.textContent='Correcto. Lo espaciaré más en futuras recuperaciones.';f.className='feedback good'}
+  else{f.textContent='Incorrecto. Este concepto deberá reaparecer antes.';f.className='feedback bad'}
+}
+
+document.querySelectorAll('.q[data-answer]').forEach(q=>{
+  const k=q.dataset.key,a=q.dataset.answer;
+  if(state[k])paint(q,state[k],a);
+  q.querySelectorAll('[data-choice]').forEach(btn=>btn.addEventListener('click',()=>{
+    state[k]=btn.dataset.choice;save();paint(q,state[k],a);updateQuizSummary();
+  }));
+});
+
+document.querySelectorAll('.open-q').forEach(q=>{
+  const k=q.dataset.key,ta=q.querySelector('textarea'),btn=q.querySelector('.save-open');
+  if(state[k])ta.value=state[k];
+  btn.addEventListener('click',()=>{
+    state[k]=ta.value.trim();save();
+    const f=q.querySelector('.feedback');
+    f.textContent=state[k]?'Guardado en este dispositivo.':'Escribe algo antes de guardar.';
+    f.className=state[k]?'feedback good':'feedback bad';
+    updateQuizSummary();
+  });
+});
+
+function updateQuizSummary(){
+  let correct=0,answered=0,total=0;
+  document.querySelectorAll('.q[data-answer]').forEach(q=>{
+    total++;const v=state[q.dataset.key];if(v){answered++;if(v===q.dataset.answer)correct++;}
+  });
+  document.getElementById('quizScore').textContent=`${correct}/${total} correctos`;
+  document.getElementById('quizState').textContent=answered===total?'Cerrados completados':'En progreso';
+}
+updateQuizSummary();updateProgress();
+
+document.getElementById('resetQuiz').addEventListener('click',()=>{
+  document.querySelectorAll('.q[data-key],.open-q[data-key]').forEach(q=>delete state[q.dataset.key]);
+  save();location.reload();
+});
+
+document.getElementById('copySummary').addEventListener('click',async()=>{
+  const lines=['CULTURA365_RESULTADOS DIA3'];
+  let correct=0,total=0;
+  document.querySelectorAll('.q[data-answer]').forEach(q=>{total++;const v=state[q.dataset.key]||'-';const ok=v===q.dataset.answer;if(ok)correct++;lines.push(`${q.dataset.key}:${v}:${ok?'OK':'REVISAR'}`)});
+  document.querySelectorAll('.open-q').forEach(q=>lines.push(`${q.dataset.key}:${(state[q.dataset.key]||'SIN_RESPUESTA').replace(/\s+/g,' ').slice(0,240)}`));
+  lines.push(`CERRADAS:${correct}/${total}`);
+  const text=lines.join('\n');
+  try{await navigator.clipboard.writeText(text);toast('Resumen copiado. Pégalo en ChatGPT.');}
+  catch{toast('No pude copiar automáticamente.');}
+});
